@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import catalog from './data/catalog.json'
+import {
+  compareEntries,
+  matchesQuery,
+  parseEntry,
+  parseQuery,
+  type CatalogEntry,
+  type Platform,
+  type Product,
+} from './catalog'
 import './App.css'
 
-type CatalogEntry = {
-  file: string
-  url: string
-}
-
-type ProductFilter = 'all' | 'pro' | 'advanced' | 'server' | 'other'
-type PlatformFilter = 'all' | 'mac' | 'windows' | 'linux' | 'other'
+type ProductFilter = 'all' | Product
+type PlatformFilter = 'all' | Platform
 
 const PAGE_SIZE = 30
 
@@ -28,59 +32,9 @@ const platformOptions: Array<{ value: PlatformFilter; label: string }> = [
   { value: 'other', label: 'Other' },
 ]
 
-function productFor(code: string): Exclude<ProductFilter, 'all'> {
-  if (code.startsWith('PROADV')) return 'advanced'
-  if (code.startsWith('PRO')) return 'pro'
-  if (code.startsWith('SRV')) return 'server'
-  return 'other'
-}
-
-function productLabel(code: string) {
-  const labels = {
-    pro: 'FileMaker Pro',
-    advanced: 'FileMaker Pro Advanced',
-    server: 'FileMaker Server',
-    other: 'Claris tool',
-  }
-  return labels[productFor(code)]
-}
-
-function platformFor(entry: CatalogEntry): Exclude<PlatformFilter, 'all'> {
-  const haystack = `${entry.file} ${entry.url}`.toUpperCase()
-  if (haystack.includes('MAC') || haystack.endsWith('.DMG')) return 'mac'
-  if (haystack.includes('WIN') || haystack.endsWith('.EXE')) return 'windows'
-  if (
-    haystack.includes('LINUX') ||
-    haystack.includes('UBUNTU') ||
-    haystack.includes('RHEL')
-  ) {
-    return 'linux'
-  }
-  return 'other'
-}
-
-function platformLabel(entry: CatalogEntry) {
-  const labels = {
-    mac: 'macOS',
-    windows: 'Windows',
-    linux: 'Linux',
-    other: 'Other',
-  }
-  return labels[platformFor(entry)]
-}
-
-function versionFor(code: string) {
-  const withoutPrefix = code.replace(/^(PROADV|PRO|SRV)/, '')
-  return withoutPrefix.match(/^\d+/)?.[0] ?? '—'
-}
-
-function filenameFor(url: string) {
-  try {
-    return decodeURIComponent(new URL(url).pathname.split('/').pop() || url)
-  } catch {
-    return url
-  }
-}
+const parsedEntries = (catalog.entries as CatalogEntry[])
+  .map(parseEntry)
+  .sort(compareEntries)
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en', {
@@ -94,35 +48,23 @@ function App() {
   const [query, setQuery] = useState('')
   const [product, setProduct] = useState<ProductFilter>('all')
   const [platform, setPlatform] = useState<PlatformFilter>('all')
+  const [englishOnly, setEnglishOnly] = useState(true)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
-  const entries = catalog.entries as CatalogEntry[]
-
   const filteredEntries = useMemo(() => {
-    const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
+    const terms = parseQuery(query)
 
-    return entries.filter((entry) => {
-      if (product !== 'all' && productFor(entry.file) !== product) return false
-      if (platform !== 'all' && platformFor(entry) !== platform) return false
-
-      const searchText = [
-        entry.file,
-        entry.url,
-        filenameFor(entry.url),
-        productLabel(entry.file),
-        platformLabel(entry),
-        versionFor(entry.file),
-      ]
-        .join(' ')
-        .toLowerCase()
-
-      return terms.every((term) => searchText.includes(term))
+    return parsedEntries.filter((entry) => {
+      if (product !== 'all' && entry.product !== product) return false
+      if (platform !== 'all' && entry.platform !== platform) return false
+      if (englishOnly && !entry.isEnglish) return false
+      return matchesQuery(entry, terms)
     })
-  }, [entries, platform, product, query])
+  }, [englishOnly, platform, product, query])
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [platform, product, query])
+  }, [englishOnly, platform, product, query])
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -137,12 +79,13 @@ function App() {
   }, [])
 
   const visibleEntries = filteredEntries.slice(0, visibleCount)
-  const hasFilters = query || product !== 'all' || platform !== 'all'
+  const hasFilters = query || product !== 'all' || platform !== 'all' || !englishOnly
 
   const clearFilters = () => {
     setQuery('')
     setProduct('all')
     setPlatform('all')
+    setEnglishOnly(true)
     searchRef.current?.focus()
   }
 
@@ -168,8 +111,9 @@ function App() {
           <div className="eyebrow"><span /> Claris software catalog</div>
           <h1 id="page-title">Find the right FileMaker download.</h1>
           <p>
-            Search {entries.length.toLocaleString()} direct links from the Claris
-            software catalog by version, platform, product, or catalog code.
+            Search {parsedEntries.length.toLocaleString()} direct links from the
+            Claris software catalog by version, platform, product, or catalog
+            code. Results are sorted newest version first.
           </p>
         </section>
 
@@ -182,7 +126,7 @@ function App() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Try “Server 26 Ubuntu” or “PRO19MAC”"
+              placeholder="Try “pro 26 windows” or “server 26 ubuntu”"
               autoComplete="off"
             />
             <kbd>⌘ K</kbd>
@@ -222,6 +166,20 @@ function App() {
                 ))}
               </div>
             </div>
+
+            <div className="filter-group" aria-label="Filter by language">
+              <span className="filter-label">Language</span>
+              <div className="chips">
+                <label className={englishOnly ? 'chip check active' : 'chip check'}>
+                  <input
+                    type="checkbox"
+                    checked={englishOnly}
+                    onChange={(event) => setEnglishOnly(event.target.checked)}
+                  />
+                  English only
+                </label>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -244,18 +202,22 @@ function App() {
               {visibleEntries.map((entry) => (
                 <article className="result-card" key={`${entry.file}-${entry.url}`}>
                   <div className="result-primary">
-                    <span className="product-name">{productLabel(entry.file)}</span>
-                    <h2>{filenameFor(entry.url)}</h2>
+                    <span className="product-name">{entry.productLabel}</span>
+                    <h2>{entry.filename}</h2>
                     <code>{entry.file}</code>
                   </div>
                   <dl className="result-meta">
                     <div>
                       <dt>Version</dt>
-                      <dd>{versionFor(entry.file)}</dd>
+                      <dd>{entry.versionLabel}</dd>
                     </div>
                     <div>
                       <dt>Platform</dt>
-                      <dd>{platformLabel(entry)}</dd>
+                      <dd>{entry.platformLabel}</dd>
+                    </div>
+                    <div>
+                      <dt>Language</dt>
+                      <dd>{entry.language}</dd>
                     </div>
                   </dl>
                   <a
