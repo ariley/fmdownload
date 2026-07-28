@@ -323,8 +323,12 @@
 }
 
 .result-card code {
+  display: block;
+  overflow: hidden;
   color: #828899;
   font: 11px/1.4 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .result-meta {

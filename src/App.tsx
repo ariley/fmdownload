@@ -203,8 +203,8 @@ function App() {
                 <article className="result-card" key={`${entry.file}-${entry.url}`}>
                   <div className="result-primary">
                     <span className="product-name">{entry.productLabel}</span>
-                    <h2>{entry.filename}</h2>
-                    <code>{entry.file}</code>
+                    <h2>{entry.displayName}</h2>
+                    <code>{entry.file} · {entry.filename}</code>
                   </div>
                   <dl className="result-meta">
                     <div>

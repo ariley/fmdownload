@@ -10,6 +10,7 @@ export type ParsedEntry = {
   file: string
   url: string
   filename: string
+  displayName: string
   product: Product
   productLabel: string
   platform: Platform
@@ -129,6 +130,65 @@ export function filenameFor(url: string): string {
   }
 }
 
+function prettifyFilename(filename: string): string {
+  return filename.replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' ').trim()
+}
+
+// Human-readable title, e.g. "FileMaker Pro 26.0.1.51 for Windows (64-bit)".
+function displayNameFor(args: {
+  code: string
+  filename: string
+  product: Product
+  platform: Platform
+  version: number | null
+  fileVersionText: string
+  language: string
+  isEnglish: boolean
+}): string {
+  const { code, filename, product, platform, version, fileVersionText, language, isEnglish } = args
+
+  // Odd one-off catalog items (migration tool, sample apps) read best as
+  // their cleaned-up filename.
+  if (product === 'other') return prettifyFilename(filename)
+
+  const lower = filename.toLowerCase()
+  const parts = [
+    PRODUCT_LABELS[product],
+    fileVersionText || (version === null ? '' : String(version)),
+  ]
+  if (lower.includes('trial')) parts.push('Trial')
+  if (lower.includes('user_connections')) parts.push('User Connections')
+
+  let platformText = ''
+  if (platform === 'mac') {
+    platformText = 'macOS'
+  } else if (platform === 'windows') {
+    const bits = lower.includes('x64')
+      ? '64-bit'
+      : lower.includes('x32')
+        ? '32-bit'
+        : code.includes('WIN32')
+          ? '32-bit'
+          : /\d\d64WIN/.test(code)
+            ? '64-bit'
+            : ''
+    platformText = bits ? `Windows (${bits})` : 'Windows'
+  } else if (platform === 'linux') {
+    const ubuntu = filename.match(/ubuntu\s?(\d+)/i)?.[1] ?? code.match(/UBUNTU(\d+)/)?.[1]
+    const arch = /arm64/i.test(filename) || code.includes('ARM64')
+      ? 'ARM64'
+      : /amd64/i.test(filename) || code.includes('AMD64')
+        ? 'AMD64'
+        : ''
+    const detail = [ubuntu ? `Ubuntu ${ubuntu}` : '', arch].filter(Boolean).join(', ')
+    platformText = detail ? `Linux (${detail})` : 'Linux'
+  }
+  if (platformText) parts.push(`for ${platformText}`)
+
+  const name = parts.filter(Boolean).join(' ')
+  return isEnglish ? name : `${name} — ${language}`
+}
+
 export function parseEntry(entry: CatalogEntry): ParsedEntry {
   const product = productFor(entry.file)
   const platform = platformFor(entry)
@@ -137,11 +197,22 @@ export function parseEntry(entry: CatalogEntry): ParsedEntry {
   const fileVersionText = filename.match(/\d+(?:\.\d+)+/)?.[0] ?? ''
   const fileVersion = fileVersionText ? fileVersionText.split('.').map(Number) : []
   const { language, isEnglish } = languageFor(entry.file)
+  const displayName = displayNameFor({
+    code: entry.file,
+    filename,
+    product,
+    platform,
+    version,
+    fileVersionText,
+    language,
+    isEnglish,
+  })
 
   const searchText = [
     entry.file,
     entry.url,
     filename,
+    displayName,
     PRODUCT_LABELS[product],
     PRODUCT_ALIASES[product],
     PLATFORM_LABELS[platform],
@@ -156,6 +227,7 @@ export function parseEntry(entry: CatalogEntry): ParsedEntry {
     file: entry.file,
     url: entry.url,
     filename,
+    displayName,
     product,
     productLabel: PRODUCT_LABELS[product],
     platform,
