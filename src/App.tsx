@@ -207,8 +207,14 @@ function matchesSearchTerm(
   entry: CatalogEntry,
   term: string,
   searchText: string,
+  options: { ubuntuVersion?: string },
 ) {
-  if (/^\d+$/.test(term)) return versionFor(entry.file) === term
+  if (/^\d+$/.test(term)) {
+    return (
+      versionFor(entry.file) === term &&
+      (!options.ubuntuVersion || entry.file.includes(`UBUNTU${term}`))
+    )
+  }
 
   const language = languageSearchTerms[term]
   if (language) return languageFor(entry.file) === language
@@ -266,6 +272,9 @@ function App() {
     const hasUbuntuTerm = terms.some(
       (term) => term.length >= 2 && 'ubuntu'.startsWith(term),
     )
+    const ubuntuVersion = hasUbuntuTerm
+      ? terms.find((term) => /^\d+$/.test(term))
+      : undefined
     const hasAmd64Variant = hasUbuntuTerm && entries.some((entry) =>
       entry.file.includes('UBUNTU') && entry.file.includes('AMD64'),
     )
@@ -302,7 +311,7 @@ function App() {
         .toLowerCase()
 
       return terms.every((term) =>
-        matchesSearchTerm(entry, term, searchText),
+        matchesSearchTerm(entry, term, searchText, { ubuntuVersion }),
       )
     })
   }, [language, platform, product, query])
