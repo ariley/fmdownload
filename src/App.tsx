@@ -207,12 +207,7 @@ function matchesSearchTerm(
   entry: CatalogEntry,
   term: string,
   searchText: string,
-  options: { ubuntuVersion?: string },
 ) {
-  if (term === options.ubuntuVersion) {
-    return entry.file.includes(`UBUNTU${term}`)
-  }
-
   if (/^\d+$/.test(term)) return versionFor(entry.file) === term
 
   const language = languageSearchTerms[term]
@@ -268,30 +263,24 @@ function App() {
 
   const filteredEntries = useMemo(() => {
     const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
-    const ubuntuTermIndex = terms.findIndex((term) =>
-      term.length >= 2 && 'ubuntu'.startsWith(term),
+    const hasUbuntuTerm = terms.some(
+      (term) => term.length >= 2 && 'ubuntu'.startsWith(term),
     )
-    const ubuntuVersion =
-      ubuntuTermIndex >= 0
-        ? terms.slice(ubuntuTermIndex + 1).find((term) => /^\d+$/.test(term))
-        : undefined
-    const hasAmd64Variant = ubuntuVersion
-      ? entries.some((entry) =>
-          entry.file.includes(`UBUNTU${ubuntuVersion}AMD64`),
-        )
-      : false
+    const hasAmd64Variant = hasUbuntuTerm && entries.some((entry) =>
+      entry.file.includes('UBUNTU') && entry.file.includes('AMD64'),
+    )
     const requestedArchitecture = terms.find(
       (term) => architectureSearchTerms[term],
     )
     const useDefaultAmd64 = Boolean(
-      ubuntuVersion && hasAmd64Variant && !requestedArchitecture,
+      hasUbuntuTerm && hasAmd64Variant && !requestedArchitecture,
     )
 
     return entries.filter((entry) => {
       if (
-        useDefaultAmd64 &&
-        entry.file.includes(`UBUNTU${ubuntuVersion}`) &&
-        !entry.file.includes(`UBUNTU${ubuntuVersion}AMD64`)
+      useDefaultAmd64 &&
+      entry.file.includes('UBUNTU') &&
+      !entry.file.includes('AMD64')
       ) {
         return false
       }
@@ -313,7 +302,7 @@ function App() {
         .toLowerCase()
 
       return terms.every((term) =>
-        matchesSearchTerm(entry, term, searchText, { ubuntuVersion }),
+        matchesSearchTerm(entry, term, searchText),
       )
     })
   }, [language, platform, product, query])
