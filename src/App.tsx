@@ -203,8 +203,12 @@ function matchesSearchTerm(entry: CatalogEntry, term: string, searchText: string
   const platform = platformSearchTerms[term]
   if (platform) return platformFor(entry) === platform
 
-  if (term === 'ubuntu' || term === 'rhel') {
-    return `${entry.file} ${entry.url}`.toLowerCase().includes(term)
+  if (term.length >= 2 && 'ubuntu'.startsWith(term)) {
+    return `${entry.file} ${entry.url}`.toLowerCase().includes('ubuntu')
+  }
+
+  if (term.length >= 2 && 'rhel'.startsWith(term)) {
+    return `${entry.file} ${entry.url}`.toLowerCase().includes('rhel')
   }
 
   if (term === 'server') return productFor(entry.file) === 'server'
