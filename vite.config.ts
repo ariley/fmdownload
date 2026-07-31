@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   preview: {
-    allowedHosts: ['fmdownload-production.up.railway.app'],
+    allowedHosts: [
+      'fmdownload-production.up.railway.app',
+      'fmdownloads.fmserved.com',
+    ],
   },
 })
