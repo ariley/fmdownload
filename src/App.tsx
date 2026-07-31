@@ -235,24 +235,15 @@ function App() {
           <span className="brand-mark" aria-hidden="true">FM</span>
           <span>Download Index</span>
         </a>
-        <a
-          className="source-link"
-          href={catalog.source}
-          target="_blank"
-          rel="noreferrer"
-        >
-          View source catalog <span aria-hidden="true">↗</span>
-        </a>
       </header>
 
       <main id="top">
         <section className="hero" aria-labelledby="page-title">
-          <div className="eyebrow"><span /> Claris software catalog</div>
-          <h1 id="page-title">Find the right FileMaker download.</h1>
+          <h1 className="sr-only" id="page-title">FM Download Index</h1>
+          <div className="eyebrow"><span /> Claris download catalog</div>
           <p>
-            Search {entries.length.toLocaleString()} direct links from the Claris
-            software catalog by version, platform, product, language, or catalog
-            code.
+            Search {entries.length.toLocaleString()} direct downloads by version,
+            platform, product, language, or catalog code.
           </p>
         </section>
 
