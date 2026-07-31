@@ -7,10 +7,30 @@ type CatalogEntry = {
   url: string
 }
 
+type IndexedCatalogEntry = CatalogEntry & {
+  catalogIndex: number
+}
+
 type ProductFilter = 'all' | 'pro' | 'advanced' | 'server' | 'other'
 type PlatformFilter = 'all' | 'mac' | 'windows' | 'linux' | 'other'
+type LanguageFilter =
+  | 'all'
+  | 'english'
+  | 'french'
+  | 'german'
+  | 'spanish'
+  | 'italian'
+  | 'japanese'
+  | 'dutch'
+  | 'swedish'
+  | 'chinese'
+  | 'portuguese'
+  | 'korean'
 
 const PAGE_SIZE = 30
+const entries: IndexedCatalogEntry[] = (catalog.entries as CatalogEntry[]).map(
+  (entry, catalogIndex) => ({ ...entry, catalogIndex }),
+)
 
 const productOptions: Array<{ value: ProductFilter; label: string }> = [
   { value: 'all', label: 'All products' },
@@ -27,6 +47,51 @@ const platformOptions: Array<{ value: PlatformFilter; label: string }> = [
   { value: 'linux', label: 'Linux' },
   { value: 'other', label: 'Other' },
 ]
+
+const languageOptions: Array<{ value: LanguageFilter; label: string }> = [
+  { value: 'all', label: 'All languages' },
+  { value: 'english', label: 'English' },
+  { value: 'french', label: 'French' },
+  { value: 'german', label: 'German' },
+  { value: 'spanish', label: 'Spanish' },
+  { value: 'italian', label: 'Italian' },
+  { value: 'japanese', label: 'Japanese' },
+  { value: 'dutch', label: 'Dutch' },
+  { value: 'swedish', label: 'Swedish' },
+  { value: 'chinese', label: 'Simplified Chinese' },
+  { value: 'portuguese', label: 'Brazilian Portuguese' },
+  { value: 'korean', label: 'Korean' },
+]
+
+const languageSuffixes: Array<{
+  codes: string[]
+  language: Exclude<LanguageFilter, 'all'>
+}> = [
+  { codes: ['BR'], language: 'portuguese' },
+  { codes: ['CN'], language: 'chinese' },
+  { codes: ['DE'], language: 'german' },
+  { codes: ['ES', 'LA'], language: 'spanish' },
+  { codes: ['FR'], language: 'french' },
+  { codes: ['IT'], language: 'italian' },
+  { codes: ['JA'], language: 'japanese' },
+  { codes: ['NL'], language: 'dutch' },
+  { codes: ['SE'], language: 'swedish' },
+  { codes: ['KR'], language: 'korean' },
+]
+
+const languageLabels: Record<Exclude<LanguageFilter, 'all'>, string> = {
+  english: 'English',
+  french: 'French',
+  german: 'German',
+  spanish: 'Spanish',
+  italian: 'Italian',
+  japanese: 'Japanese',
+  dutch: 'Dutch',
+  swedish: 'Swedish',
+  chinese: 'Simplified Chinese',
+  portuguese: 'Brazilian Portuguese',
+  korean: 'Korean',
+}
 
 function productFor(code: string): Exclude<ProductFilter, 'all'> {
   if (code.startsWith('PROADV')) return 'advanced'
@@ -69,6 +134,20 @@ function platformLabel(entry: CatalogEntry) {
   return labels[platformFor(entry)]
 }
 
+function languageFor(code: string): Exclude<LanguageFilter, 'all'> {
+  if (code.endsWith('CAFR') || code.endsWith('CHFR')) return 'french'
+
+  return (
+    languageSuffixes.find(({ codes }) =>
+      codes.some((suffix) => code.endsWith(suffix)),
+    )?.language ?? 'english'
+  )
+}
+
+function languageLabel(code: string) {
+  return languageLabels[languageFor(code)]
+}
+
 function versionFor(code: string) {
   const withoutPrefix = code.replace(/^(PROADV|PRO|SRV)/, '')
   return withoutPrefix.match(/^\d+/)?.[0] ?? '—'
@@ -94,9 +173,8 @@ function App() {
   const [query, setQuery] = useState('')
   const [product, setProduct] = useState<ProductFilter>('all')
   const [platform, setPlatform] = useState<PlatformFilter>('all')
+  const [language, setLanguage] = useState<LanguageFilter>('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-
-  const entries = catalog.entries as CatalogEntry[]
 
   const filteredEntries = useMemo(() => {
     const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
@@ -104,6 +182,7 @@ function App() {
     return entries.filter((entry) => {
       if (product !== 'all' && productFor(entry.file) !== product) return false
       if (platform !== 'all' && platformFor(entry) !== platform) return false
+      if (language !== 'all' && languageFor(entry.file) !== language) return false
 
       const searchText = [
         entry.file,
@@ -111,6 +190,7 @@ function App() {
         filenameFor(entry.url),
         productLabel(entry.file),
         platformLabel(entry),
+        languageLabel(entry.file),
         versionFor(entry.file),
       ]
         .join(' ')
@@ -118,11 +198,11 @@ function App() {
 
       return terms.every((term) => searchText.includes(term))
     })
-  }, [entries, platform, product, query])
+  }, [language, platform, product, query])
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [platform, product, query])
+  }, [language, platform, product, query])
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -137,12 +217,14 @@ function App() {
   }, [])
 
   const visibleEntries = filteredEntries.slice(0, visibleCount)
-  const hasFilters = query || product !== 'all' || platform !== 'all'
+  const hasFilters =
+    query || product !== 'all' || platform !== 'all' || language !== 'all'
 
   const clearFilters = () => {
     setQuery('')
     setProduct('all')
     setPlatform('all')
+    setLanguage('all')
     searchRef.current?.focus()
   }
 
@@ -169,7 +251,8 @@ function App() {
           <h1 id="page-title">Find the right FileMaker download.</h1>
           <p>
             Search {entries.length.toLocaleString()} direct links from the Claris
-            software catalog by version, platform, product, or catalog code.
+            software catalog by version, platform, product, language, or catalog
+            code.
           </p>
         </section>
 
@@ -222,6 +305,26 @@ function App() {
                 ))}
               </div>
             </div>
+
+            <div
+              className="filter-group language-filter"
+              aria-label="Filter by language"
+            >
+              <span className="filter-label">Language</span>
+              <div className="chips">
+                {languageOptions.map((option) => (
+                  <button
+                    type="button"
+                    className={language === option.value ? 'chip active' : 'chip'}
+                    aria-pressed={language === option.value}
+                    onClick={() => setLanguage(option.value)}
+                    key={option.value}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -242,7 +345,7 @@ function App() {
           {visibleEntries.length > 0 ? (
             <div className="result-list">
               {visibleEntries.map((entry) => (
-                <article className="result-card" key={`${entry.file}-${entry.url}`}>
+                <article className="result-card" key={entry.catalogIndex}>
                   <div className="result-primary">
                     <span className="product-name">{productLabel(entry.file)}</span>
                     <h2>{filenameFor(entry.url)}</h2>
@@ -256,6 +359,10 @@ function App() {
                     <div>
                       <dt>Platform</dt>
                       <dd>{platformLabel(entry)}</dd>
+                    </div>
+                    <div>
+                      <dt>Language</dt>
+                      <dd>{languageLabel(entry.file)}</dd>
                     </div>
                   </dl>
                   <a
@@ -274,7 +381,10 @@ function App() {
             <div className="empty-state">
               <span aria-hidden="true">⌕</span>
               <h2>No matching downloads</h2>
-              <p>Try a different catalog code, version, product, or platform.</p>
+              <p>
+                Try a different catalog code, version, product, platform, or
+                language.
+              </p>
               <button type="button" onClick={clearFilters}>Reset search</button>
             </div>
           )}

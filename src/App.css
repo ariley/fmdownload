@@ -175,6 +175,10 @@
   min-width: 0;
 }
 
+.language-filter {
+  grid-column: 1 / -1;
+}
+
 .filter-label {
   display: block;
   margin: 0 0 9px 4px;
@@ -266,7 +270,7 @@
 .result-card {
   min-height: 112px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px 170px;
+  grid-template-columns: minmax(0, 1fr) 330px 170px;
   align-items: center;
   gap: 30px;
   padding: 20px 22px;
@@ -314,7 +318,7 @@
 
 .result-meta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin: 0;
 }

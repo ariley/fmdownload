@@ -1,8 +1,8 @@
 # FM Download Index
 
 A fast, searchable interface for the public Claris software download catalog.
-Search by catalog code, product, version, platform, filename, or URL, then open
-the original Claris-hosted download in a new tab.
+Search by catalog code, product, version, platform, language, filename, or URL,
+then open the original Claris-hosted download in a new tab.
 
 ## Development
 
