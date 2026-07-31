@@ -139,6 +139,15 @@ const platformSearchTerms: Record<
   linux: 'linux',
 }
 
+const architectureSearchTerms: Record<string, 'amd64' | 'arm64'> = {
+  amd: 'amd64',
+  amd64: 'amd64',
+  x64: 'amd64',
+  arm: 'arm64',
+  arm64: 'arm64',
+  aarch64: 'arm64',
+}
+
 function productFor(code: string): Exclude<ProductFilter, 'all'> {
   if (code.startsWith('PROADV')) return 'advanced'
   if (code.startsWith('PRO')) return 'pro'
@@ -194,7 +203,16 @@ function languageLabel(code: string) {
   return languageLabels[languageFor(code)]
 }
 
-function matchesSearchTerm(entry: CatalogEntry, term: string, searchText: string) {
+function matchesSearchTerm(
+  entry: CatalogEntry,
+  term: string,
+  searchText: string,
+  options: { ubuntuVersion?: string },
+) {
+  if (term === options.ubuntuVersion) {
+    return entry.file.includes(`UBUNTU${term}`)
+  }
+
   if (/^\d+$/.test(term)) return versionFor(entry.file) === term
 
   const language = languageSearchTerms[term]
@@ -202,6 +220,9 @@ function matchesSearchTerm(entry: CatalogEntry, term: string, searchText: string
 
   const platform = platformSearchTerms[term]
   if (platform) return platformFor(entry) === platform
+
+  const architecture = architectureSearchTerms[term]
+  if (architecture) return entry.file.includes(architecture.toUpperCase())
 
   if (term.length >= 2 && 'ubuntu'.startsWith(term)) {
     return `${entry.file} ${entry.url}`.toLowerCase().includes('ubuntu')
@@ -247,8 +268,34 @@ function App() {
 
   const filteredEntries = useMemo(() => {
     const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
+    const ubuntuTermIndex = terms.findIndex((term) =>
+      term.length >= 2 && 'ubuntu'.startsWith(term),
+    )
+    const ubuntuVersion =
+      ubuntuTermIndex >= 0
+        ? terms.slice(ubuntuTermIndex + 1).find((term) => /^\d+$/.test(term))
+        : undefined
+    const hasAmd64Variant = ubuntuVersion
+      ? entries.some((entry) =>
+          entry.file.includes(`UBUNTU${ubuntuVersion}AMD64`),
+        )
+      : false
+    const requestedArchitecture = terms.find(
+      (term) => architectureSearchTerms[term],
+    )
+    const useDefaultAmd64 = Boolean(
+      ubuntuVersion && hasAmd64Variant && !requestedArchitecture,
+    )
 
     return entries.filter((entry) => {
+      if (
+        useDefaultAmd64 &&
+        entry.file.includes(`UBUNTU${ubuntuVersion}`) &&
+        !entry.file.includes(`UBUNTU${ubuntuVersion}AMD64`)
+      ) {
+        return false
+      }
+
       if (product !== 'all' && productFor(entry.file) !== product) return false
       if (platform !== 'all' && platformFor(entry) !== platform) return false
       if (language !== 'all' && languageFor(entry.file) !== language) return false
@@ -265,7 +312,9 @@ function App() {
         .join(' ')
         .toLowerCase()
 
-      return terms.every((term) => matchesSearchTerm(entry, term, searchText))
+      return terms.every((term) =>
+        matchesSearchTerm(entry, term, searchText, { ubuntuVersion }),
+      )
     })
   }, [language, platform, product, query])
 
