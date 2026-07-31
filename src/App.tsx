@@ -26,6 +26,7 @@ type LanguageFilter =
   | 'chinese'
   | 'portuguese'
   | 'korean'
+type VersionFilter = 'all' | string
 
 const PAGE_SIZE = 30
 const entries: IndexedCatalogEntry[] = (catalog.entries as CatalogEntry[]).map(
@@ -61,6 +62,13 @@ const languageOptions: Array<{ value: LanguageFilter; label: string }> = [
   { value: 'chinese', label: 'Simplified Chinese' },
   { value: 'portuguese', label: 'Brazilian Portuguese' },
   { value: 'korean', label: 'Korean' },
+]
+
+const versionOptions: Array<{ value: VersionFilter; label: string }> = [
+  { value: 'all', label: 'All versions' },
+  ...Array.from(new Set(entries.map((entry) => versionFor(entry.file))))
+    .sort((a, b) => Number(a) - Number(b))
+    .map((version) => ({ value: version, label: version })),
 ]
 
 const languageSuffixes: Array<{
@@ -265,6 +273,7 @@ function App() {
   const [product, setProduct] = useState<ProductFilter>('all')
   const [platform, setPlatform] = useState<PlatformFilter>('all')
   const [language, setLanguage] = useState<LanguageFilter>('all')
+  const [version, setVersion] = useState<VersionFilter>('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const filteredEntries = useMemo(() => {
@@ -297,6 +306,7 @@ function App() {
       if (product !== 'all' && productFor(entry.file) !== product) return false
       if (platform !== 'all' && platformFor(entry) !== platform) return false
       if (language !== 'all' && languageFor(entry.file) !== language) return false
+      if (version !== 'all' && versionFor(entry.file) !== version) return false
 
       const searchText = [
         entry.file,
@@ -314,11 +324,11 @@ function App() {
         matchesSearchTerm(entry, term, searchText, { ubuntuVersion }),
       )
     })
-  }, [language, platform, product, query])
+  }, [language, platform, product, query, version])
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [language, platform, product, query])
+  }, [language, platform, product, query, version])
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -334,13 +344,18 @@ function App() {
 
   const visibleEntries = filteredEntries.slice(0, visibleCount)
   const hasFilters =
-    query || product !== 'all' || platform !== 'all' || language !== 'all'
+    query ||
+    product !== 'all' ||
+    platform !== 'all' ||
+    language !== 'all' ||
+    version !== 'all'
 
   const clearFilters = () => {
     setQuery('')
     setProduct('all')
     setPlatform('all')
     setLanguage('all')
+    setVersion('all')
     searchRef.current?.focus()
   }
 
@@ -398,6 +413,26 @@ function App() {
                     className={platform === option.value ? 'chip active' : 'chip'}
                     aria-pressed={platform === option.value}
                     onClick={() => setPlatform(option.value)}
+                    key={option.value}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className="filter-group version-filter"
+              aria-label="Filter by version"
+            >
+              <span className="filter-label">Version</span>
+              <div className="chips">
+                {versionOptions.map((option) => (
+                  <button
+                    type="button"
+                    className={version === option.value ? 'chip active' : 'chip'}
+                    aria-pressed={version === option.value}
+                    onClick={() => setVersion(option.value)}
                     key={option.value}
                   >
                     {option.label}
