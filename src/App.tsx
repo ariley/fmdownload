@@ -238,14 +238,7 @@ function App() {
       </header>
 
       <main id="top">
-        <section className="hero" aria-labelledby="page-title">
-          <h1 className="sr-only" id="page-title">FM Download Index</h1>
-          <div className="eyebrow"><span /> Claris download catalog</div>
-          <p>
-            Search {entries.length.toLocaleString()} direct downloads by version,
-            platform, product, language, or catalog code.
-          </p>
-        </section>
+        <h1 className="sr-only">FM Download Index</h1>
 
         <section className="search-panel" aria-label="Download search">
           <label className="search-box">
