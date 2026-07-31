@@ -352,11 +352,9 @@ function App() {
                   <a
                     className="download-link"
                     href={entry.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`Open download for ${entry.file} in a new tab`}
+                    aria-label={`Download ${entry.file}`}
                   >
-                    Open download <span aria-hidden="true">↗</span>
+                    Download <span aria-hidden="true">↓</span>
                   </a>
                 </article>
               ))}
