@@ -93,6 +93,52 @@ const languageLabels: Record<Exclude<LanguageFilter, 'all'>, string> = {
   korean: 'Korean',
 }
 
+const languageSearchTerms: Record<
+  string,
+  Exclude<LanguageFilter, 'all'>
+> = {
+  en: 'english',
+  eng: 'english',
+  english: 'english',
+  fr: 'french',
+  french: 'french',
+  de: 'german',
+  german: 'german',
+  es: 'spanish',
+  spanish: 'spanish',
+  it: 'italian',
+  italian: 'italian',
+  ja: 'japanese',
+  jp: 'japanese',
+  japanese: 'japanese',
+  nl: 'dutch',
+  dutch: 'dutch',
+  sv: 'swedish',
+  se: 'swedish',
+  swedish: 'swedish',
+  zh: 'chinese',
+  cn: 'chinese',
+  chinese: 'chinese',
+  pt: 'portuguese',
+  br: 'portuguese',
+  portuguese: 'portuguese',
+  ko: 'korean',
+  kr: 'korean',
+  korean: 'korean',
+}
+
+const platformSearchTerms: Record<
+  string,
+  Exclude<PlatformFilter, 'all'>
+> = {
+  mac: 'mac',
+  macos: 'mac',
+  osx: 'mac',
+  win: 'windows',
+  windows: 'windows',
+  linux: 'linux',
+}
+
 function productFor(code: string): Exclude<ProductFilter, 'all'> {
   if (code.startsWith('PROADV')) return 'advanced'
   if (code.startsWith('PRO')) return 'pro'
@@ -148,6 +194,25 @@ function languageLabel(code: string) {
   return languageLabels[languageFor(code)]
 }
 
+function matchesSearchTerm(entry: CatalogEntry, term: string, searchText: string) {
+  if (/^\d+$/.test(term)) return versionFor(entry.file) === term
+
+  const language = languageSearchTerms[term]
+  if (language) return languageFor(entry.file) === language
+
+  const platform = platformSearchTerms[term]
+  if (platform) return platformFor(entry) === platform
+
+  if (term === 'ubuntu' || term === 'rhel') {
+    return `${entry.file} ${entry.url}`.toLowerCase().includes(term)
+  }
+
+  if (term === 'server') return productFor(entry.file) === 'server'
+  if (term === 'advanced') return productFor(entry.file) === 'advanced'
+
+  return searchText.includes(term)
+}
+
 function versionFor(code: string) {
   const withoutPrefix = code.replace(/^(PROADV|PRO|SRV)/, '')
   return withoutPrefix.match(/^\d+/)?.[0] ?? '—'
@@ -196,7 +261,7 @@ function App() {
         .join(' ')
         .toLowerCase()
 
-      return terms.every((term) => searchText.includes(term))
+      return terms.every((term) => matchesSearchTerm(entry, term, searchText))
     })
   }, [language, platform, product, query])
 
